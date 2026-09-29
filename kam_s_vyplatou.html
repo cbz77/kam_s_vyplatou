@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kam s výplatou</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --card:#ffffff; --text:#1c1b19; --muted:#6b6862;
+    --accent:#2f6f4f; --accent2:#3b6ea5; --accent3:#c07a2b; --border:#e6e3dc;
+    padding-top: env(safe-area-inset-top,0px);
+    padding-bottom: env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#16181a; --card:#1f2225; --text:#eceae6; --muted:#9a968c; --border:#2c2f33;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#16181a; --card:#1f2225; --text:#eceae6; --muted:#9a968c; --border:#2c2f33;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height:100%;
+    display:flex; justify-content:center;
+    padding:24px 16px 48px;
+  }
+  .wrap{width:100%; max-width:640px;}
+  h1{font-size:1.4rem; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:0.92rem; margin:0 0 24px; line-height:1.4;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:20px; margin-bottom:16px;
+  }
+  label{display:block; font-size:0.85rem; color:var(--muted); margin-bottom:6px; font-weight:600;}
+  .field{margin-bottom:16px;}
+  .field:last-child{margin-bottom:0;}
+  input[type=number]{
+    width:100%; padding:12px 14px; font-size:1.05rem; border-radius:10px;
+    border:1px solid var(--border); background:var(--bg); color:var(--text);
+  }
+  input[type=number]:focus{outline:2px solid var(--accent2); outline-offset:1px;}
+  .row{display:flex; gap:12px;}
+  .row .field{flex:1;}
+  .checkbox-row{display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;}
+  .checkbox-row input{width:18px; height:18px;}
+  .checkbox-row span{font-size:0.92rem;}
+  .hint{font-size:0.78rem; color:var(--muted); margin-top:4px;}
+
+  .chart-row{display:flex; align-items:center; gap:24px; flex-wrap:wrap; justify-content:center;}
+  svg{flex-shrink:0;}
+  .legend{flex:1; min-width:180px; display:flex; flex-direction:column; gap:10px;}
+  .legend-item{display:flex; align-items:center; gap:10px; font-size:0.92rem;}
+  .dot{width:12px; height:12px; border-radius:3px; flex-shrink:0;}
+
+  .amounts{display:flex; flex-direction:column; gap:10px; margin-top:4px;}
+  .amount-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 14px; border-radius:10px; background:var(--bg); border:1px solid var(--border);
+  }
+  .amount-row .label{display:flex; align-items:center; gap:10px; font-weight:600; color:var(--text);}
+  .amount-row .value{font-weight:700; font-size:1.05rem;}
+  .amount-row .pct{color:var(--muted); font-weight:500; font-size:0.8rem; margin-left:4px;}
+
+  .status{
+    font-size:0.85rem; padding:10px 14px; border-radius:10px; margin-bottom:16px;
+    background: color-mix(in srgb, var(--accent) 12%, var(--card));
+    border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  }
+  .status.warn{
+    background: color-mix(in srgb, #b23b3b 12%, var(--card));
+    border:1px solid color-mix(in srgb, #b23b3b 30%, var(--border));
+  }
+  .empty{color:var(--muted); text-align:center; padding:20px 0; font-size:0.92rem;}
+  footer{text-align:center; color:var(--muted); font-size:0.75rem; margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💰 Kam s výplatou</h1>
+  <p class="sub">Zaplať nutné výdaje, ze zbytku 40 % rezerva / 40 % investice / 20 % zábava — dokud nemáš rezervu, pak se rezerva přesměruje dál.</p>
+
+  <div class="card">
+    <div class="field">
+      <label for="salary">Měsíční výplata (čistá)</label>
+      <input type="number" id="salary" inputmode="decimal" placeholder="např. 2500" min="0">
+    </div>
+    <div class="field">
+      <label for="expenses">Nutné výdaje (nájem, jídlo, účty…)</label>
+      <input type="number" id="expenses" inputmode="decimal" placeholder="např. 1200" min="0">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fund">Kolik už máš v rezervě</label>
+        <input type="number" id="fund" inputmode="decimal" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="target">Cílová výše rezervy</label>
+        <input type="number" id="target" inputmode="decimal" value="3000" min="0">
+        <div class="hint">Doporučeno 2 000–4 000</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <div id="empty" class="empty">Zadej výplatu a výdaje výše 👆</div>
+    <div id="results" style="display:none;">
+      <div id="status" class="status"></div>
+      <div class="chart-row">
+        <svg id="pie" viewBox="0 0 200 200" width="180" height="180"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="amounts" id="amounts" style="margin-top:20px;"></div>
+    </div>
+  </div>
+  <footer>Vše se počítá jen v tvém prohlížeči, nikam se neodesílá.</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('cs-CZ', {maximumFractionDigits:0}) + ' Kč';
+
+function polarToCartesian(cx, cy, r, angleDeg){
+  const a = (angleDeg-90) * Math.PI/180;
+  return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
+}
+function arcPath(cx, cy, r, startAngle, endAngle){
+  if(endAngle - startAngle >= 359.999){ endAngle = startAngle + 359.999; }
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
+}
+
+function buildPie(svgEl, segments){
+  svgEl.innerHTML = '';
+  const cx=100, cy=100, r=95;
+  let angle = 0;
+  segments.forEach(seg=>{
+    if(seg.value <= 0) return;
+    const sweep = seg.pct * 360;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', arcPath(cx, cy, r, angle, angle+sweep));
+    path.setAttribute('fill', seg.color);
+    svgEl.appendChild(path);
+    angle += sweep;
+  });
+  // center hole for donut look
+  const hole = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  hole.setAttribute('cx', cx); hole.setAttribute('cy', cy); hole.setAttribute('r', 48);
+  hole.setAttribute('fill', 'var(--card)');
+  svgEl.appendChild(hole);
+}
+
+function render(){
+  const salary = parseFloat($('salary').value) || 0;
+  const expenses = parseFloat($('expenses').value) || 0;
+  const fund = parseFloat($('fund').value) || 0;
+  const target = parseFloat($('target').value) || 0;
+
+  if(salary <= 0){
+    $('empty').style.display='block';
+    $('results').style.display='none';
+    return;
+  }
+  $('empty').style.display='none';
+  $('results').style.display='block';
+
+  const remainder = Math.max(0, salary - expenses);
+  const fundReached = target > 0 ? fund >= target : false;
+
+  let savings=0, invest=0, fun=0;
+  const base40 = remainder*0.4, base20 = remainder*0.2;
+
+  if(!fundReached){
+    savings = base40;
+    invest = base40;
+    fun = base20;
+  } else {
+    savings = 0;
+    fun = base20;
+    invest = base40 + base40; // rezerva splněna, celých 40 % teď jde do investic
+  }
+
+  const statusEl = $('status');
+  if(expenses > salary){
+    statusEl.className = 'status warn';
+    statusEl.textContent = `⚠️ Výdaje (${fmt(expenses)}) jsou vyšší než výplata (${fmt(salary)}). Nezbývá nic k rozdělení.`;
+  } else if(!fundReached){
+    const missing = target - fund;
+    statusEl.className = 'status';
+    statusEl.textContent = `🛟 Rezerva zatím není hotová (chybí ${fmt(missing)} do cíle ${fmt(target)}). 40 % jde do rezervy.`;
+  } else {
+    statusEl.className = 'status';
+    statusEl.textContent = `✅ Rezerva splněna! 40 % teď jde celé do investic místo spoření.`;
+  }
+
+  const colorExpenses = '#9a968c';
+  const colorSavings = '#3b6ea5';
+  const colorInvest = '#2f6f4f';
+  const colorFun = '#c07a2b';
+
+  const pieSegments = [];
+  const total = salary;
+  function seg(value, color){ return {value, pct: total>0? value/total : 0, color}; }
+
+  pieSegments.push(seg(Math.min(expenses,salary), colorExpenses));
+  if(savings>0) pieSegments.push(seg(savings, colorSavings));
+  if(invest>0) pieSegments.push(seg(invest, colorInvest));
+  if(fun>0) pieSegments.push(seg(fun, colorFun));
+
+  buildPie($('pie'), pieSegments);
+
+  const legendItems = [
+    {label:'Nutné výdaje', value:Math.min(expenses,salary), color:colorExpenses},
+  ];
+  if(savings>0) legendItems.push({label:'Rezerva (flexibilní spoření)', value:savings, color:colorSavings});
+  if(invest>0) legendItems.push({label:'Investice', value:invest, color:colorInvest});
+  if(fun>0) legendItems.push({label:'Zábava 🎉', value:fun, color:colorFun});
+
+  $('legend').innerHTML = legendItems.map(it=>`
+    <div class="legend-item">
+      <div class="dot" style="background:${it.color}"></div>
+      <div>${it.label} — <strong>${fmt(it.value)}</strong> (${total>0?Math.round(it.value/total*100):0} %)</div>
+    </div>
+  `).join('');
+
+  $('amounts').innerHTML = legendItems.map(it=>`
+    <div class="amount-row">
+      <div class="label"><span class="dot" style="background:${it.color}"></span>${it.label}</div>
+      <div class="value">${fmt(it.value)} <span class="pct">${total>0?Math.round(it.value/total*100):0}%</span></div>
+    </div>
+  `).join('');
+}
+
+['salary','expenses','fund','target'].forEach(id=>{
+  $(id).addEventListener('input', render);
+  $(id).addEventListener('change', render);
+});
+render();
+</script>
+</body>
+</html>
